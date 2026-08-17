@@ -61,3 +61,15 @@ if __name__ == "__main__":
     
     # Expected output shape: torch.Size([14, 8, 8])
     print("Tensor Shape:", board_tensor.shape) 
+
+def move_to_index(move: chess.Move) -> int:
+    """Converts a chess.Move object into a unique index between 0 and 4095."""
+    from_square = move.from_square  # Number from 0 to 63
+    to_square = move.to_square      # Number from 0 to 63
+    return from_square * 64 + to_square
+
+def index_to_move(index: int) -> chess.Move:
+    """Converts an index between 0 and 4095 back into a chess.Move object."""
+    from_square = index // 64
+    to_square = index % 64
+    return chess.Move(from_square, to_square)
