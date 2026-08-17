@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Chess AI</title>
+    <link rel="stylesheet" href="https://unpkg.com">
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        #board { width: 400px; }
+        #status { margin-top: 15px; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+    <div id="status">Status: Your turn (White)</div>
+
+    <script src="https://jquery.com"></script>
+    <script src="https://unpkg.com"></script>
+    <script src="https://cloudflare.com"></script>
+    <script>
+        var board = null;
+        var game = new Chess();
+
+        function evaluateBoard(board) {
+            var totalEvaluation = 0;
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    totalEvaluation = totalEvaluation + getPieceValue(board[i][j], i, j);
+                }
+            }
+            return totalEvaluation;
+        }
+
+        function getPieceValue(piece, x, y) {
+            if (piece === null) { return 0; }
+            var getAbsoluteValue = function (piece, isWhite) {
+                if (piece.type === 'p') { return 10; }
+                else if (piece.type === 'r') { return 50; }
+                else if (piece.type === 'n') { return 30; }
+                else if (piece.type === 'b') { return 30; }
+                else if (piece.type === 'q') { return 90; }
+                else if (piece.type === 'k') { return 900; }
+                return 0;
+            };
+            var absoluteValue = getAbsoluteValue(piece, piece.color === 'w');
+            return piece.color === 'w' ? absoluteValue : -absoluteValue;
+        }
+
+        function minimax(game, depth, isMaximisingPlayer) {
+            if (depth === 0) { return -evaluateBoard(game.board()); }
+            var newGameMoves = game.いに?.() || game.ascii() && game.moves(); 
+            // Simplified fallback for legal moves generation
+            var moves = game.ugly_moves ? game.ugly_moves({verbose: true}) : game.moves({verbose: true});
+            
+            if (isMaximisingPlayer) {
+                var bestEvaluation = -9999;
+                for (var i = 0; i < moves.length; i++) {
+                    game.move(moves[i]);
+                    bestEvaluation = Math.max(bestEvaluation, minimax(game, depth - 1, false));
+                    game.undo();
+                }
+                return bestEvaluation;
+            } else {
+                var bestEvaluation = 9999;
+                for (var i = 0; i < moves.length; i++) {
+                    game.move(moves[i]);
+                    bestEvaluation = Math.min(bestEvaluation, minimax(game, depth - 1, true));
+                    game.undo();
+                }
+                return bestEvaluation;
+            }
+        }
+
+        function makeBestMove() {
+            var possibleMoves = game.moves({verbose: true});
+            if (possibleMoves.length === 0) return;
+
+            var bestMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+            var bestValue = -9999;
+            
+            for (var i = 0; i < possibleMoves.length; i++) {
+                var move = possibleMoves[i];
+                game.move(move);
+                var value = minimax(game, 2, false);
+                game.undo();
+                if (value > bestValue) {
+                    bestValue = value;
+                    bestMove = move;
+                }
+            }
+            game.move(bestMove);
+            board.position(game.fen());
+            updateStatus();
+        }
+
+        function onDragStart(source, piece, position, orientation) {
+            if (game.game_over() || (game.turn() === 'b' && piece.search(/^b/) !== -1) || (game.turn() === 'w' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
+        }
+
+        function onDrop(source, target) {
+            var move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+            updateStatus();
+            window.setTimeout(makeBestMove, 250);
+        }
+
+        function onSnapEnd() { board.position(game.fen()); }
+
+        function updateStatus() {
+            var status = '';
+            if (game.in_checkmate()) { status = 'Game over, ' + (game.turn() === 'w' ? 'Black' : 'White') + ' wins by checkmate.'; }
+            else if (game.in_draw()) { status = 'Game over, drawn position.'; }
+            else { status = (game.turn() === 'w' ? 'White' : 'Black') + "'s turn."; if (game.in_check()) { status += ' Check!'; } }
+            $('#status').text(status);
+        }
+
+        var config = { draggable: true, position: 'start', onDragStart: onDragStart, onDrop: onDrop, onSnapEnd: onSnapEnd };
+        board = Chessboard('board', config);
+        updateStatus();
+    </script>
+</body>
+</html>
