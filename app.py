@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 
 # ============================================================
-# LOAD AI
+# AI
 # ============================================================
 
 model = ChessNet()
@@ -43,7 +43,7 @@ board = chess.Board()
 
 
 # ============================================================
-# PIECE SYMBOLS
+# PIECES
 # ============================================================
 
 PIECES = {
@@ -68,12 +68,11 @@ PIECES = {
 # ============================================================
 
 def get_ai_move():
-    """Choose the highest-scoring legal black move."""
 
-    input_tensor = board_to_tensor(board).unsqueeze(0)
+    tensor = board_to_tensor(board).unsqueeze(0)
 
     with torch.no_grad():
-        policy, _ = model(input_tensor)
+        policy, _ = model(tensor)
 
     scores = policy[0].cpu().numpy()
 
@@ -81,7 +80,9 @@ def get_ai_move():
     best_score = float("-inf")
 
     for move in board.legal_moves:
+
         index = move_to_index(move)
+
         score = float(scores[index])
 
         if score > best_score:
@@ -92,26 +93,34 @@ def get_ai_move():
 
 
 # ============================================================
-# CONVERT BOARD TO JSON
+# BOARD DATA FOR BROWSER
 # ============================================================
 
 def board_json():
 
     board_array = []
 
+    # Browser displays:
+    #
+    # 8 7 6 5 4 3 2 1
+    #
+    # from top to bottom.
+    #
+    # Files:
+    #
+    # a b c d e f g h
+
     for row in range(8):
 
         row_data = []
 
-        for col in range(8):
+        rank = 7 - row
 
-            # Browser coordinates:
-            # row 0 = rank 8
-            # row 7 = rank 1
+        for col in range(8):
 
             square = chess.square(
                 col,
-                7 - row
+                rank
             )
 
             piece = board.piece_at(square)
@@ -134,9 +143,7 @@ def board_json():
         board_array.append(row_data)
 
 
-    # ========================================================
-    # LEGAL MOVES
-    # ========================================================
+    # Legal moves for White
 
     legal_moves = []
 
@@ -144,15 +151,46 @@ def board_json():
 
         for move in board.legal_moves:
 
+            from_col = chess.square_file(
+                move.from_square
+            )
+
+            from_rank = chess.square_rank(
+                move.from_square
+            )
+
+            from_row = 7 - from_rank
+
+
+            to_col = chess.square_file(
+                move.to_square
+            )
+
+            to_rank = chess.square_rank(
+                move.to_square
+            )
+
+            to_row = 7 - to_rank
+
+
+            from_browser_square = (
+                from_row * 8
+                + from_col
+            )
+
+            to_browser_square = (
+                to_row * 8
+                + to_col
+            )
+
+
             legal_moves.append({
-                "from": move.from_square,
-                "to": move.to_square
+                "from": from_browser_square,
+                "to": to_browser_square
             })
 
 
-    # ========================================================
-    # GAME STATUS
-    # ========================================================
+    # Status
 
     if board.is_checkmate():
 
@@ -199,7 +237,7 @@ def board_json():
 
 
 # ============================================================
-# HTML PAGE
+# HTML
 # ============================================================
 
 HTML = """
@@ -211,10 +249,13 @@ HTML = """
 
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Chess AI</title>
+
 
     <style>
 
@@ -222,116 +263,210 @@ HTML = """
             box-sizing: border-box;
         }
 
+
+        html,
         body {
+
             margin: 0;
-            min-height: 100vh;
+            padding: 0;
+
             background: #222;
+
             color: white;
+
             font-family: Arial, sans-serif;
+
             text-align: center;
+
         }
+
+
+        body {
+
+            min-height: 100vh;
+
+            padding-top: 15px;
+
+        }
+
 
         h1 {
-            margin: 20px 0 10px;
+
+            margin: 10px 0;
+
         }
+
 
         #status {
+
             font-size: 20px;
-            margin: 15px;
+
+            margin: 10px 0 15px;
+
             min-height: 25px;
+
         }
+
+
+        /*
+         * IMPORTANT:
+         *
+         * The board is always a square.
+         * Each square is exactly 1/8 of the board.
+         */
 
         #board {
-            width: min(640px, 92vw);
-            height: min(640px, 92vw);
-            margin: 20px auto;
+
+            width: 640px;
+
+            height: 640px;
+
+            max-width: 90vw;
+
+            max-height: 90vw;
+
+            aspect-ratio: 1 / 1;
+
+            margin: 0 auto 20px;
 
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
+
+            grid-template-columns:
+                repeat(8, 1fr);
+
+            grid-template-rows:
+                repeat(8, 1fr);
 
             border: 4px solid #111;
+
         }
 
+
         .square {
+
+            width: 100%;
+
+            height: 100%;
+
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             cursor: pointer;
+
             user-select: none;
+
         }
+
 
         .light {
+
             background: #f0d9b5;
+
         }
+
 
         .dark {
+
             background: #b58863;
+
         }
+
 
         .selected {
+
             background: #f6f669 !important;
+
         }
+
 
         .legal {
+
             box-shadow:
                 inset 0 0 0 6px
-                rgba(50, 180, 50, 0.65);
+                rgba(40, 180, 40, 0.75);
+
         }
+
 
         .capture {
+
             box-shadow:
                 inset 0 0 0 6px
-                rgba(200, 50, 50, 0.7);
+                rgba(210, 50, 50, 0.8);
+
         }
 
+
         .piece {
+
             font-family:
                 "DejaVu Sans",
                 "Segoe UI Symbol",
                 "Noto Sans Symbols 2",
+                Arial,
                 sans-serif;
 
-            font-size: clamp(35px, 8vw, 64px);
+            font-size: clamp(
+                36px,
+                8vw,
+                62px
+            );
 
             line-height: 1;
 
             pointer-events: none;
+
         }
 
-        /*
-         * WHITE PIECES
-         */
 
         .white-piece {
-            color: #ffffff;
+
+            color: white;
 
             text-shadow:
                 -2px -2px 0 #111,
                  2px -2px 0 #111,
                 -2px  2px 0 #111,
                  2px  2px 0 #111;
+
         }
 
-        /*
-         * BLACK PIECES
-         */
 
         .black-piece {
-            color: #111111;
+
+            color: #111;
 
             text-shadow:
-                -2px -2px 0 #ffffff,
-                 2px -2px 0 #ffffff,
-                -2px  2px 0 #ffffff,
-                 2px  2px 0 #ffffff;
+                -2px -2px 0 white,
+                 2px -2px 0 white,
+                -2px  2px 0 white,
+                 2px  2px 0 white;
+
         }
 
+
         button {
+
             font-size: 18px;
-            padding: 10px 20px;
-            margin-bottom: 25px;
+
+            padding: 10px 22px;
+
             cursor: pointer;
+
+            border: none;
+
+            border-radius: 5px;
+
+        }
+
+
+        button:hover {
+
+            background: #ddd;
+
         }
 
     </style>
@@ -341,22 +476,27 @@ HTML = """
 
 <body>
 
-    <h1>♟ Chess AI</h1>
 
-    <div id="status">
-        Loading...
-    </div>
+<h1>♟ Chess AI</h1>
 
-    <div id="board"></div>
 
-    <button onclick="newGame()">
-        New Game
-    </button>
+<div id="status">
+    Loading...
+</div>
+
+
+<div id="board"></div>
+
+
+<button onclick="newGame()">
+    New Game
+</button>
 
 
 <script>
 
 let boardData = null;
+
 let selectedSquare = null;
 
 
@@ -368,22 +508,29 @@ async function getBoard() {
 
     try {
 
-        const response = await fetch("/board");
+        const response =
+            await fetch("/board");
 
-        boardData = await response.json();
+        boardData =
+            await response.json();
 
         selectedSquare = null;
 
         drawBoard();
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
         console.error(error);
 
-        document.getElementById("status").innerText =
-            "Could not connect to the chess server.";
+        document.getElementById(
+            "status"
+        ).innerText =
+            "Could not connect to server.";
 
     }
+
 }
 
 
@@ -403,16 +550,22 @@ function drawBoard() {
 
         for (let col = 0; col < 8; col++) {
 
-            const square = row * 8 + col;
+            const square =
+                row * 8 + col;
 
-            const div = document.createElement("div");
+
+            const div =
+                document.createElement("div");
+
 
             div.classList.add("square");
 
 
             // Board color
 
-            if ((row + col) % 2 === 0) {
+            if (
+                (row + col) % 2 === 0
+            ) {
 
                 div.classList.add("light");
 
@@ -425,18 +578,21 @@ function drawBoard() {
 
             // Selected square
 
-            if (square === selectedSquare) {
+            if (
+                square === selectedSquare
+            ) {
 
                 div.classList.add("selected");
 
             }
 
 
-            // Find legal move to this square
+            // Is this a legal destination?
 
             const legalMove =
                 boardData.legal_moves.find(
-                    move => move.to === square
+                    move =>
+                        move.to === square
                 );
 
 
@@ -445,19 +601,25 @@ function drawBoard() {
                 const piece =
                     boardData.board[row][col];
 
+
                 if (piece) {
 
-                    div.classList.add("capture");
+                    div.classList.add(
+                        "capture"
+                    );
 
                 } else {
 
-                    div.classList.add("legal");
+                    div.classList.add(
+                        "legal"
+                    );
 
                 }
+
             }
 
 
-            // Piece
+            // Get piece
 
             const piece =
                 boardData.board[row][col];
@@ -466,12 +628,19 @@ function drawBoard() {
             if (piece) {
 
                 const pieceElement =
-                    document.createElement("span");
+                    document.createElement(
+                        "span"
+                    );
 
-                pieceElement.classList.add("piece");
+
+                pieceElement.classList.add(
+                    "piece"
+                );
 
 
-                if (piece.color === "white") {
+                if (
+                    piece.color === "white"
+                ) {
 
                     pieceElement.classList.add(
                         "white-piece"
@@ -490,24 +659,37 @@ function drawBoard() {
                     piece.symbol;
 
 
-                div.appendChild(pieceElement);
+                div.appendChild(
+                    pieceElement
+                );
+
             }
 
 
-            div.onclick = function() {
+            // Click handler
 
-                clickSquare(square);
+            div.addEventListener(
+                "click",
+                function() {
 
-            };
+                    clickSquare(square);
+
+                }
+            );
 
 
             boardElement.appendChild(div);
+
         }
+
     }
 
 
-    document.getElementById("status").innerText =
+    document.getElementById(
+        "status"
+    ).innerText =
         boardData.status;
+
 }
 
 
@@ -517,17 +699,26 @@ function drawBoard() {
 
 async function clickSquare(square) {
 
-    // Don't allow moves after game ends
 
-    if (boardData.game_over) {
+    // Game over
+
+    if (
+        boardData.game_over
+    ) {
+
         return;
+
     }
 
 
-    // Player controls White
+    // Only player controls White
 
-    if (boardData.turn !== "white") {
+    if (
+        boardData.turn !== "white"
+    ) {
+
         return;
+
     }
 
 
@@ -535,15 +726,23 @@ async function clickSquare(square) {
     // FIRST CLICK
     // ======================================================
 
-    if (selectedSquare === null) {
+    if (
+        selectedSquare === null
+    ) {
 
-        const row = Math.floor(square / 8);
+        const row =
+            Math.floor(square / 8);
 
-        const col = square % 8;
+
+        const col =
+            square % 8;
+
 
         const piece =
             boardData.board[row][col];
 
+
+        // Only select White pieces
 
         if (
             piece &&
@@ -552,19 +751,25 @@ async function clickSquare(square) {
 
             const canMove =
                 boardData.legal_moves.some(
-                    move => move.from === square
+                    move =>
+                        move.from === square
                 );
 
 
             if (canMove) {
 
-                selectedSquare = square;
+                selectedSquare =
+                    square;
 
                 drawBoard();
+
             }
+
         }
 
+
         return;
+
     }
 
 
@@ -572,39 +777,48 @@ async function clickSquare(square) {
     // SECOND CLICK
     // ======================================================
 
-    const from = selectedSquare;
+    const from =
+        selectedSquare;
 
 
-    // Click selected square again
+    // Clicking selected square again
 
-    if (square === selectedSquare) {
+    if (
+        square === selectedSquare
+    ) {
 
         selectedSquare = null;
 
         drawBoard();
 
         return;
+
     }
 
 
+    // ======================================================
+    // SEND MOVE TO PYTHON
+    // ======================================================
+
     try {
 
-        const response = await fetch(
-            "/move",
-            {
-                method: "POST",
+        const response =
+            await fetch(
+                "/move",
+                {
+                    method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
-                    from: from,
-                    to: square
-                })
-            }
-        );
+                    body: JSON.stringify({
+                        from: from,
+                        to: square
+                    })
+                }
+            );
 
 
         const result =
@@ -613,14 +827,13 @@ async function clickSquare(square) {
 
         selectedSquare = null;
 
-
         boardData = result;
 
         drawBoard();
 
 
         // ==================================================
-        // AI TURN
+        // AI MOVE
         // ==================================================
 
         if (
@@ -647,12 +860,17 @@ async function clickSquare(square) {
                 await aiResponse.json();
 
 
-            boardData = aiResult;
+            boardData =
+                aiResult;
+
 
             drawBoard();
+
         }
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
         console.error(error);
 
@@ -662,6 +880,7 @@ async function clickSquare(square) {
             "Error communicating with server.";
 
     }
+
 }
 
 
@@ -671,24 +890,17 @@ async function clickSquare(square) {
 
 async function newGame() {
 
-    try {
+    await fetch(
+        "/new_game",
+        {
+            method: "POST"
+        }
+    );
 
-        await fetch(
-            "/new_game",
-            {
-                method: "POST"
-            }
-        );
+    selectedSquare = null;
 
-        selectedSquare = null;
+    await getBoard();
 
-        await getBoard();
-
-    } catch (error) {
-
-        console.error(error);
-
-    }
 }
 
 
@@ -699,6 +911,7 @@ async function newGame() {
 getBoard();
 
 </script>
+
 
 </body>
 
@@ -719,7 +932,9 @@ def index():
 @app.route("/board")
 def get_board():
 
-    return jsonify(board_json())
+    return jsonify(
+        board_json()
+    )
 
 
 @app.route("/new_game", methods=["POST"])
@@ -729,7 +944,9 @@ def new_game():
 
     board = chess.Board()
 
-    return jsonify(board_json())
+    return jsonify(
+        board_json()
+    )
 
 
 @app.route("/move", methods=["POST"])
@@ -739,7 +956,7 @@ def player_move():
 
 
     # ========================================================
-    # READ REQUEST
+    # READ JSON
     # ========================================================
 
     data = request.get_json()
@@ -751,29 +968,64 @@ def player_move():
 
         result["success"] = False
 
-        result["message"] = "No move data received."
+        result["message"] = (
+            "No move data received."
+        )
 
         return jsonify(result)
 
 
     try:
 
-        from_square = int(data["from"])
-        to_square = int(data["to"])
+        from_browser = int(
+            data["from"]
+        )
 
-    except (KeyError, TypeError, ValueError):
+        to_browser = int(
+            data["to"]
+        )
+
+    except (
+        KeyError,
+        TypeError,
+        ValueError
+    ):
 
         result = board_json()
 
         result["success"] = False
 
-        result["message"] = "Invalid move data."
+        result["message"] = (
+            "Invalid move data."
+        )
 
         return jsonify(result)
 
 
     # ========================================================
-    # ONLY WHITE CAN BE CONTROLLED BY PLAYER
+    # VALIDATE BROWSER SQUARES
+    # ========================================================
+
+    if (
+        from_browser < 0
+        or from_browser > 63
+        or to_browser < 0
+        or to_browser > 63
+    ):
+
+        result = board_json()
+
+        result["success"] = False
+
+        result["message"] = (
+            "Invalid board square."
+        )
+
+        return jsonify(result)
+
+
+    # ========================================================
+    # PLAYER MUST BE WHITE
     # ========================================================
 
     if board.turn != chess.WHITE:
@@ -782,40 +1034,22 @@ def player_move():
 
         result["success"] = False
 
-        result["message"] = "It is the AI's turn."
+        result["message"] = (
+            "It is the AI's turn."
+        )
 
         return jsonify(result)
 
 
     # ========================================================
-    # CHECK RANGE
+    # BROWSER -> CHESS COORDINATES
     # ========================================================
 
-    if (
-        from_square < 0
-        or from_square > 63
-        or to_square < 0
-        or to_square > 63
-    ):
+    from_row = from_browser // 8
+    from_col = from_browser % 8
 
-        result = board_json()
-
-        result["success"] = False
-
-        result["message"] = "Invalid square."
-
-        return jsonify(result)
-
-
-    # ========================================================
-    # BROWSER SQUARE -> CHESS SQUARE
-    # ========================================================
-
-    from_col = from_square % 8
-    from_row = from_square // 8
-
-    to_col = to_square % 8
-    to_row = to_square // 8
+    to_row = to_browser // 8
+    to_col = to_browser % 8
 
 
     from_chess_square = chess.square(
@@ -841,7 +1075,7 @@ def player_move():
 
 
     # ========================================================
-    # AUTOMATIC QUEEN PROMOTION
+    # AUTO-PROMOTE TO QUEEN
     # ========================================================
 
     piece = board.piece_at(
@@ -874,13 +1108,15 @@ def player_move():
 
         result["success"] = False
 
-        result["message"] = "Illegal move."
+        result["message"] = (
+            "Illegal move."
+        )
 
         return jsonify(result)
 
 
     # ========================================================
-    # MAKE PLAYER MOVE
+    # PLAY MOVE
     # ========================================================
 
     board.push(move)
@@ -890,10 +1126,16 @@ def player_move():
 
     result["success"] = True
 
-    result["message"] = "Move played."
+    result["message"] = (
+        "Move played."
+    )
 
     return jsonify(result)
 
+
+# ============================================================
+# AI ROUTE
+# ============================================================
 
 @app.route("/ai_move", methods=["POST"])
 def ai_move():
@@ -901,18 +1143,18 @@ def ai_move():
     global board
 
 
-    # Don't move if game is over
-
     if board.is_game_over():
 
-        return jsonify(board_json())
+        return jsonify(
+            board_json()
+        )
 
-
-    # AI controls Black
 
     if board.turn != chess.BLACK:
 
-        return jsonify(board_json())
+        return jsonify(
+            board_json()
+        )
 
 
     move = get_ai_move()
@@ -923,7 +1165,9 @@ def ai_move():
         board.push(move)
 
 
-    return jsonify(board_json())
+    return jsonify(
+        board_json()
+    )
 
 
 # ============================================================
@@ -934,10 +1178,10 @@ if __name__ == "__main__":
 
     print()
     print("==============================")
-    print("       CHESS AI SERVER")
+    print("       BOB AI SERVER")
     print("==============================")
     print()
-    print("Open port 8000 in your browser.")
+    print("Open the forwarded port 8000.")
     print()
 
 

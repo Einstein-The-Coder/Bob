@@ -10,10 +10,6 @@ from utils import board_to_tensor, move_to_index
 from model import ChessNet
 
 
-# ============================================================
-# SETTINGS
-# ============================================================
-
 TRAIN_FOLDER = "train"
 
 EPOCHS = 3
@@ -23,14 +19,7 @@ LEARNING_RATE = 0.001
 SAVE_FILE = "chess_model_weights.pth"
 
 
-# ============================================================
-# TRAIN
-# ============================================================
-
-def train_on_folder(
-    folder_path,
-    epochs=EPOCHS
-):
+def train_on_folder(folder_path, epochs=3):
 
     print()
     print("==============================")
@@ -39,9 +28,9 @@ def train_on_folder(
     print()
 
 
-    # ========================================================
+    # ==========================================
     # FIND PGN FILES
-    # ========================================================
+    # ==========================================
 
     pgn_files = glob.glob(
         os.path.join(
@@ -50,11 +39,14 @@ def train_on_folder(
         )
     )
 
-
     if not pgn_files:
 
         print(
-            f"No .pgn files found in '{folder_path}'."
+            f"No PGN files found in '{folder_path}'."
+        )
+
+        print(
+            "Put your .pgn files inside the train folder."
         )
 
         return
@@ -64,21 +56,19 @@ def train_on_folder(
         f"Found {len(pgn_files)} PGN file(s)."
     )
 
-    print()
 
-
-    # ========================================================
+    # ==========================================
     # MODEL
-    # ========================================================
+    # ==========================================
 
     model = ChessNet()
 
     model.train()
 
 
-    # ========================================================
+    # ==========================================
     # OPTIMIZER
-    # ========================================================
+    # ==========================================
 
     optimizer = optim.Adam(
         model.parameters(),
@@ -86,43 +76,35 @@ def train_on_folder(
     )
 
 
-    # ========================================================
-    # POLICY LOSS
-    # ========================================================
+    # ==========================================
+    # LOSS
+    # ==========================================
 
-    policy_loss_function = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
 
 
-    # ========================================================
-    # EPOCHS
-    # ========================================================
+    # ==========================================
+    # TRAINING
+    # ==========================================
 
     for epoch in range(epochs):
 
         total_loss = 0.0
-
         moves_processed = 0
-
         games_processed = 0
 
 
+        print()
         print(
-            f"========== Epoch "
-            f"{epoch + 1}/{epochs} =========="
+            f"Epoch {epoch + 1}/{epochs}"
         )
 
-
-        # ====================================================
-        # PGN FILES
-        # ====================================================
 
         for pgn_filename in pgn_files:
 
             print(
                 "Processing:",
-                os.path.basename(
-                    pgn_filename
-                )
+                os.path.basename(pgn_filename)
             )
 
 
@@ -133,16 +115,13 @@ def train_on_folder(
                 errors="ignore"
             ) as pgn_file:
 
-
                 while True:
 
                     game = chess.pgn.read_game(
                         pgn_file
                     )
 
-
                     if game is None:
-
                         break
 
 
@@ -150,10 +129,6 @@ def train_on_folder(
 
                     board = game.board()
 
-
-                    # ========================================
-                    # MOVES
-                    # ========================================
 
                     for move in game.mainline_moves():
 
@@ -171,22 +146,16 @@ def train_on_folder(
                         )
 
 
-                        # Forward
-
                         policy, value = model(
                             input_tensor
                         )
 
 
-                        # Loss
-
-                        loss = policy_loss_function(
+                        loss = criterion(
                             policy,
                             target
                         )
 
-
-                        # Backpropagation
 
                         optimizer.zero_grad()
 
@@ -195,54 +164,35 @@ def train_on_folder(
                         optimizer.step()
 
 
-                        # Statistics
-
-                        total_loss += (
-                            loss.item()
-                        )
+                        total_loss += loss.item()
 
                         moves_processed += 1
 
 
-                        # Advance board
-
                         board.push(move)
 
 
-        # ====================================================
-        # STATISTICS
-        # ====================================================
-
         average_loss = (
             total_loss /
-            max(
-                1,
-                moves_processed
-            )
+            max(1, moves_processed)
         )
 
 
         print()
-
         print(
-            "Games:",
-            games_processed
+            f"Games: {games_processed}"
         )
 
         print(
-            "Moves:",
-            moves_processed
+            f"Moves: {moves_processed}"
         )
 
         print(
-            f"Average loss: "
-            f"{average_loss:.6f}"
+            f"Average loss: {average_loss:.6f}"
         )
 
 
-        # ====================================================
-        # SAVE
-        # ====================================================
+        # Save after every epoch
 
         torch.save(
             model.state_dict(),
@@ -251,24 +201,19 @@ def train_on_folder(
 
 
         print(
-            f"Saved: {SAVE_FILE}"
+            f"Saved {SAVE_FILE}"
         )
 
-        print()
 
-
+    print()
     print("==============================")
     print("       TRAINING FINISHED")
     print("==============================")
 
 
-# ============================================================
-# START
-# ============================================================
-
 if __name__ == "__main__":
 
     train_on_folder(
         TRAIN_FOLDER,
-        epochs=EPOCHS
+        EPOCHS
     )
