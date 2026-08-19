@@ -36,10 +36,10 @@ POLICY_WEIGHT = 1.0
 VALUE_WEIGHT = 1.0
 
 # Set to None to use every game.
-MAX_GAMES = None
+MAX_GAMES = 100
 
 # Set to None to use every position.
-MAX_POSITIONS = None
+MAX_POSITIONS = 50000
 
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
