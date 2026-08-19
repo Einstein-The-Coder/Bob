@@ -22,31 +22,28 @@ try:
             map_location="cpu"
         )
     )
-
     print("Loaded trained AI.")
 
 except FileNotFoundError:
-
     print("WARNING: chess_model_weights.pth not found.")
     print("AI will use random weights.")
 
-except Exception as e:
-
+except Exception as error:
     print("WARNING: Could not load AI weights.")
-    print("Error:", e)
+    print("Error:", error)
 
 model.eval()
 
 
 # ============================================================
-# GAME
+# CHESS BOARD
 # ============================================================
 
 board = chess.Board()
 
 
 # ============================================================
-# PIECES
+# PIECE SYMBOLS
 # ============================================================
 
 PIECES = {
@@ -71,40 +68,23 @@ PIECES = {
 # ============================================================
 
 def get_ai_move():
+    """Choose the highest-scoring legal black move."""
 
-    input_tensor = (
-        board_to_tensor(board)
-        .unsqueeze(0)
-    )
+    input_tensor = board_to_tensor(board).unsqueeze(0)
 
     with torch.no_grad():
+        policy, _ = model(input_tensor)
 
-        policy, _ = model(
-            input_tensor
-        )
-
-    scores = (
-        policy[0]
-        .cpu()
-        .numpy()
-    )
+    scores = policy[0].cpu().numpy()
 
     best_move = None
     best_score = float("-inf")
 
     for move in board.legal_moves:
-
         index = move_to_index(move)
-
-        if index >= len(scores):
-            continue
-
-        score = float(
-            scores[index]
-        )
+        score = float(scores[index])
 
         if score > best_score:
-
             best_score = score
             best_move = move
 
@@ -112,7 +92,7 @@ def get_ai_move():
 
 
 # ============================================================
-# BOARD JSON
+# CONVERT BOARD TO JSON
 # ============================================================
 
 def board_json():
@@ -124,6 +104,10 @@ def board_json():
         row_data = []
 
         for col in range(8):
+
+            # Browser coordinates:
+            # row 0 = rank 8
+            # row 7 = rank 1
 
             square = chess.square(
                 col,
@@ -144,8 +128,7 @@ def board_json():
                         "white"
                         if piece.color == chess.WHITE
                         else "black"
-                    ),
-                    "type": piece.piece_type
+                    )
                 })
 
         board_array.append(row_data)
@@ -168,53 +151,34 @@ def board_json():
 
 
     # ========================================================
-    # STATUS
+    # GAME STATUS
     # ========================================================
 
     if board.is_checkmate():
 
         if board.turn == chess.WHITE:
-
             status = "Checkmate — AI wins!"
-
         else:
-
             status = "Checkmate — You win!"
-
 
     elif board.is_stalemate():
 
         status = "Draw — Stalemate"
 
-
     elif board.is_insufficient_material():
 
         status = "Draw — Insufficient material"
 
-
-    elif board.is_game_over():
-
-        status = (
-            "Game Over: "
-            + board.result()
-        )
-
-
     elif board.is_check():
 
         if board.turn == chess.WHITE:
-
             status = "Your turn — CHECK!"
-
         else:
-
             status = "AI's turn — CHECK!"
-
 
     elif board.turn == chess.WHITE:
 
         status = "Your turn"
-
 
     else:
 
@@ -235,10 +199,10 @@ def board_json():
 
 
 # ============================================================
-# HTML
+# HTML PAGE
 # ============================================================
 
-HTML = r"""
+HTML = """
 <!DOCTYPE html>
 
 <html>
@@ -252,201 +216,122 @@ HTML = r"""
 
     <title>Chess AI</title>
 
-
     <style>
 
         * {
             box-sizing: border-box;
         }
 
-
         body {
-
             margin: 0;
-
             min-height: 100vh;
-
             background: #222;
-
             color: white;
-
             font-family: Arial, sans-serif;
-
             text-align: center;
-
         }
-
 
         h1 {
-
             margin: 20px 0 10px;
-
         }
-
 
         #status {
-
             font-size: 20px;
-
             margin: 15px;
-
             min-height: 25px;
-
         }
 
-
         #board {
-
-            width: min(640px, 90vw);
-
-            height: min(640px, 90vw);
-
+            width: min(640px, 92vw);
+            height: min(640px, 92vw);
             margin: 20px auto;
 
             display: grid;
-
-            grid-template-columns:
-                repeat(8, 1fr);
+            grid-template-columns: repeat(8, 1fr);
 
             border: 4px solid #111;
-
         }
 
-
         .square {
-
-            position: relative;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
 
             cursor: pointer;
-
             user-select: none;
-
         }
-
 
         .light {
-
             background: #f0d9b5;
-
         }
-
 
         .dark {
-
             background: #b58863;
-
         }
-
 
         .selected {
-
             background: #f6f669 !important;
-
         }
 
-
         .legal {
-
             box-shadow:
                 inset 0 0 0 6px
                 rgba(50, 180, 50, 0.65);
-
         }
-
 
         .capture {
-
             box-shadow:
                 inset 0 0 0 6px
-                rgba(200, 50, 50, 0.75);
-
+                rgba(200, 50, 50, 0.7);
         }
 
-
         .piece {
-
             font-family:
                 "DejaVu Sans",
                 "Segoe UI Symbol",
                 "Noto Sans Symbols 2",
                 sans-serif;
 
-            font-size: clamp(
-                35px,
-                8vw,
-                64px
-            );
+            font-size: clamp(35px, 8vw, 64px);
 
             line-height: 1;
 
             pointer-events: none;
-
         }
 
-
         /*
-         * White pieces
+         * WHITE PIECES
          */
 
         .white-piece {
-
             color: #ffffff;
 
             text-shadow:
                 -2px -2px 0 #111,
                  2px -2px 0 #111,
                 -2px  2px 0 #111,
-                 2px  2px 0 #111,
-                 0px  0px 4px #111;
-
+                 2px  2px 0 #111;
         }
 
-
         /*
-         * Black pieces
+         * BLACK PIECES
          */
 
         .black-piece {
-
             color: #111111;
 
             text-shadow:
                 -2px -2px 0 #ffffff,
                  2px -2px 0 #ffffff,
                 -2px  2px 0 #ffffff,
-                 2px  2px 0 #ffffff,
-                 0px  0px 4px #ffffff;
-
+                 2px  2px 0 #ffffff;
         }
-
 
         button {
-
             font-size: 18px;
-
             padding: 10px 20px;
-
             margin-bottom: 25px;
-
             cursor: pointer;
-
-            border: none;
-
-            border-radius: 5px;
-
-        }
-
-
-        button:hover {
-
-            background: #ddd;
-
         }
 
     </style>
@@ -456,27 +341,22 @@ HTML = r"""
 
 <body>
 
+    <h1>♟ Chess AI</h1>
 
-<h1>♟ Chess AI</h1>
+    <div id="status">
+        Loading...
+    </div>
 
+    <div id="board"></div>
 
-<div id="status">
-    Loading...
-</div>
-
-
-<div id="board"></div>
-
-
-<button onclick="newGame()">
-    New Game
-</button>
+    <button onclick="newGame()">
+        New Game
+    </button>
 
 
 <script>
 
 let boardData = null;
-
 let selectedSquare = null;
 
 
@@ -488,9 +368,7 @@ async function getBoard() {
 
     try {
 
-        const response = await fetch(
-            "/board"
-        );
+        const response = await fetch("/board");
 
         boardData = await response.json();
 
@@ -498,19 +376,14 @@ async function getBoard() {
 
         drawBoard();
 
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(error);
 
-        document.getElementById(
-            "status"
-        ).innerText =
-            "Could not connect to server.";
+        document.getElementById("status").innerText =
+            "Could not connect to the chess server.";
 
     }
-
 }
 
 
@@ -521,83 +394,49 @@ async function getBoard() {
 function drawBoard() {
 
     const boardElement =
-        document.getElementById(
-            "board"
-        );
-
+        document.getElementById("board");
 
     boardElement.innerHTML = "";
 
 
-    for (
-        let row = 0;
-        row < 8;
-        row++
-    ) {
+    for (let row = 0; row < 8; row++) {
+
+        for (let col = 0; col < 8; col++) {
+
+            const square = row * 8 + col;
+
+            const div = document.createElement("div");
+
+            div.classList.add("square");
 
 
-        for (
-            let col = 0;
-            col < 8;
-            col++
-        ) {
+            // Board color
 
+            if ((row + col) % 2 === 0) {
 
-            const square =
-                row * 8 + col;
+                div.classList.add("light");
 
+            } else {
 
-            const div =
-                document.createElement(
-                    "div"
-                );
-
-
-            div.classList.add(
-                "square"
-            );
-
-
-            // Board colors
-
-            if (
-                (row + col) % 2 === 0
-            ) {
-
-                div.classList.add(
-                    "light"
-                );
-
-            }
-
-            else {
-
-                div.classList.add(
-                    "dark"
-                );
+                div.classList.add("dark");
 
             }
 
 
             // Selected square
 
-            if (
-                square === selectedSquare
-            ) {
+            if (square === selectedSquare) {
 
-                div.classList.add(
-                    "selected"
-                );
+                div.classList.add("selected");
 
             }
 
 
-            // Legal moves
+            // Find legal move to this square
 
             const legalMove =
                 boardData.legal_moves.find(
-                    move =>
-                        move.to === square
+                    move => move.to === square
                 );
 
 
@@ -606,23 +445,15 @@ function drawBoard() {
                 const piece =
                     boardData.board[row][col];
 
-
                 if (piece) {
 
-                    div.classList.add(
-                        "capture"
-                    );
+                    div.classList.add("capture");
+
+                } else {
+
+                    div.classList.add("legal");
 
                 }
-
-                else {
-
-                    div.classList.add(
-                        "legal"
-                    );
-
-                }
-
             }
 
 
@@ -635,30 +466,21 @@ function drawBoard() {
             if (piece) {
 
                 const pieceElement =
-                    document.createElement(
-                        "span"
-                    );
+                    document.createElement("span");
+
+                pieceElement.classList.add("piece");
 
 
-                pieceElement.classList.add(
-                    "piece"
-                );
-
-
-                if (
-                    piece.color === "black"
-                ) {
-
-                    pieceElement.classList.add(
-                        "black-piece"
-                    );
-
-                }
-
-                else {
+                if (piece.color === "white") {
 
                     pieceElement.classList.add(
                         "white-piece"
+                    );
+
+                } else {
+
+                    pieceElement.classList.add(
+                        "black-piece"
                     );
 
                 }
@@ -668,14 +490,9 @@ function drawBoard() {
                     piece.symbol;
 
 
-                div.appendChild(
-                    pieceElement
-                );
-
+                div.appendChild(pieceElement);
             }
 
-
-            // Click
 
             div.onclick = function() {
 
@@ -684,20 +501,13 @@ function drawBoard() {
             };
 
 
-            boardElement.appendChild(
-                div
-            );
-
+            boardElement.appendChild(div);
         }
-
     }
 
 
-    document.getElementById(
-        "status"
-    ).innerText =
+    document.getElementById("status").innerText =
         boardData.status;
-
 }
 
 
@@ -707,22 +517,17 @@ function drawBoard() {
 
 async function clickSquare(square) {
 
+    // Don't allow moves after game ends
 
-    if (
-        boardData.game_over
-    ) {
-
+    if (boardData.game_over) {
         return;
-
     }
 
 
-    if (
-        boardData.turn !== "white"
-    ) {
+    // Player controls White
 
+    if (boardData.turn !== "white") {
         return;
-
     }
 
 
@@ -730,18 +535,11 @@ async function clickSquare(square) {
     // FIRST CLICK
     // ======================================================
 
-    if (
-        selectedSquare === null
-    ) {
+    if (selectedSquare === null) {
 
-        const row =
-            Math.floor(
-                square / 8
-            );
+        const row = Math.floor(square / 8);
 
-        const col =
-            square % 8;
-
+        const col = square % 8;
 
         const piece =
             boardData.board[row][col];
@@ -754,25 +552,19 @@ async function clickSquare(square) {
 
             const canMove =
                 boardData.legal_moves.some(
-                    move =>
-                        move.from === square
+                    move => move.from === square
                 );
 
 
             if (canMove) {
 
-                selectedSquare =
-                    square;
+                selectedSquare = square;
 
                 drawBoard();
-
             }
-
         }
 
-
         return;
-
     }
 
 
@@ -780,27 +572,24 @@ async function clickSquare(square) {
     // SECOND CLICK
     // ======================================================
 
-    const from =
-        selectedSquare;
+    const from = selectedSquare;
 
 
-    // Clicking the same square
+    // Click selected square again
 
-    if (
-        square === selectedSquare
-    ) {
+    if (square === selectedSquare) {
 
         selectedSquare = null;
 
         drawBoard();
 
         return;
-
     }
 
 
-    const response =
-        await fetch(
+    try {
+
+        const response = await fetch(
             "/move",
             {
                 method: "POST",
@@ -818,62 +607,61 @@ async function clickSquare(square) {
         );
 
 
-    const result =
-        await response.json();
+        const result =
+            await response.json();
 
 
-    selectedSquare = null;
+        selectedSquare = null;
 
-
-    if (!result.success) {
 
         boardData = result;
 
         drawBoard();
 
-        return;
 
-    }
+        // ==================================================
+        // AI TURN
+        // ==================================================
+
+        if (
+            result.success &&
+            !result.game_over
+        ) {
+
+            document.getElementById(
+                "status"
+            ).innerText =
+                "AI is thinking...";
 
 
-    boardData = result;
+            const aiResponse =
+                await fetch(
+                    "/ai_move",
+                    {
+                        method: "POST"
+                    }
+                );
 
-    drawBoard();
+
+            const aiResult =
+                await aiResponse.json();
 
 
-    // ======================================================
-    // AI TURN
-    // ======================================================
+            boardData = aiResult;
 
-    if (
-        !result.game_over
-    ) {
+            drawBoard();
+        }
+
+    } catch (error) {
+
+        console.error(error);
 
         document.getElementById(
             "status"
         ).innerText =
-            "AI is thinking...";
-
-
-        const aiResponse =
-            await fetch(
-                "/ai_move",
-                {
-                    method: "POST"
-                }
-            );
-
-
-        const aiResult =
-            await aiResponse.json();
-
-
-        boardData = aiResult;
-
-        drawBoard();
+            "Error communicating with server.";
 
     }
-
 }
 
 
@@ -883,18 +671,24 @@ async function clickSquare(square) {
 
 async function newGame() {
 
-    await fetch(
-        "/new_game",
-        {
-            method: "POST"
-        }
-    );
+    try {
 
+        await fetch(
+            "/new_game",
+            {
+                method: "POST"
+            }
+        );
 
-    selectedSquare = null;
+        selectedSquare = null;
 
-    await getBoard();
+        await getBoard();
 
+    } catch (error) {
+
+        console.error(error);
+
+    }
 }
 
 
@@ -905,7 +699,6 @@ async function newGame() {
 getBoard();
 
 </script>
-
 
 </body>
 
@@ -920,89 +713,68 @@ getBoard();
 @app.route("/")
 def index():
 
-    return render_template_string(
-        HTML
-    )
+    return render_template_string(HTML)
 
-
-# ============================================================
-# BOARD
-# ============================================================
 
 @app.route("/board")
 def get_board():
 
-    return jsonify(
-        board_json()
-    )
+    return jsonify(board_json())
 
 
-# ============================================================
-# NEW GAME
-# ============================================================
-
-@app.route(
-    "/new_game",
-    methods=["POST"]
-)
+@app.route("/new_game", methods=["POST"])
 def new_game():
 
     global board
 
     board = chess.Board()
 
-    return jsonify(
-        board_json()
-    )
+    return jsonify(board_json())
 
 
-# ============================================================
-# PLAYER MOVE
-# ============================================================
-
-@app.route(
-    "/move",
-    methods=["POST"]
-)
+@app.route("/move", methods=["POST"])
 def player_move():
 
     global board
 
+
+    # ========================================================
+    # READ REQUEST
+    # ========================================================
 
     data = request.get_json()
 
 
     if not data:
 
-        return jsonify({
-            "success": False,
-            "message": "No move data received."
-        })
+        result = board_json()
+
+        result["success"] = False
+
+        result["message"] = "No move data received."
+
+        return jsonify(result)
 
 
     try:
 
-        from_square = int(
-            data["from"]
-        )
+        from_square = int(data["from"])
+        to_square = int(data["to"])
 
-        to_square = int(
-            data["to"]
-        )
+    except (KeyError, TypeError, ValueError):
 
-    except (
-        KeyError,
-        TypeError,
-        ValueError
-    ):
+        result = board_json()
 
-        return jsonify({
-            "success": False,
-            "message": "Invalid move data."
-        })
+        result["success"] = False
+
+        result["message"] = "Invalid move data."
+
+        return jsonify(result)
 
 
-    # Only White is controlled by player.
+    # ========================================================
+    # ONLY WHITE CAN BE CONTROLLED BY PLAYER
+    # ========================================================
 
     if board.turn != chess.WHITE:
 
@@ -1010,33 +782,40 @@ def player_move():
 
         result["success"] = False
 
-        result["message"] = (
-            "It is the AI's turn."
-        )
+        result["message"] = "It is the AI's turn."
 
         return jsonify(result)
 
 
     # ========================================================
-    # SCREEN -> CHESS
+    # CHECK RANGE
     # ========================================================
 
-    from_col = (
-        from_square % 8
-    )
+    if (
+        from_square < 0
+        or from_square > 63
+        or to_square < 0
+        or to_square > 63
+    ):
 
-    from_row = (
-        from_square // 8
-    )
+        result = board_json()
+
+        result["success"] = False
+
+        result["message"] = "Invalid square."
+
+        return jsonify(result)
 
 
-    to_col = (
-        to_square % 8
-    )
+    # ========================================================
+    # BROWSER SQUARE -> CHESS SQUARE
+    # ========================================================
 
-    to_row = (
-        to_square // 8
-    )
+    from_col = from_square % 8
+    from_row = from_square // 8
+
+    to_col = to_square % 8
+    to_row = to_square // 8
 
 
     from_chess_square = chess.square(
@@ -1051,6 +830,10 @@ def player_move():
     )
 
 
+    # ========================================================
+    # CREATE MOVE
+    # ========================================================
+
     move = chess.Move(
         from_chess_square,
         to_chess_square
@@ -1058,7 +841,7 @@ def player_move():
 
 
     # ========================================================
-    # PROMOTION
+    # AUTOMATIC QUEEN PROMOTION
     # ========================================================
 
     piece = board.piece_at(
@@ -1068,8 +851,7 @@ def player_move():
 
     if (
         piece is not None
-        and piece.piece_type
-        == chess.PAWN
+        and piece.piece_type == chess.PAWN
         and chess.square_rank(
             to_chess_square
         ) in (0, 7)
@@ -1083,7 +865,7 @@ def player_move():
 
 
     # ========================================================
-    # CHECK LEGAL
+    # CHECK LEGAL MOVE
     # ========================================================
 
     if move not in board.legal_moves:
@@ -1092,15 +874,13 @@ def player_move():
 
         result["success"] = False
 
-        result["message"] = (
-            "Illegal move."
-        )
+        result["message"] = "Illegal move."
 
         return jsonify(result)
 
 
     # ========================================================
-    # MAKE MOVE
+    # MAKE PLAYER MOVE
     # ========================================================
 
     board.push(move)
@@ -1110,35 +890,29 @@ def player_move():
 
     result["success"] = True
 
+    result["message"] = "Move played."
 
     return jsonify(result)
 
 
-# ============================================================
-# AI MOVE
-# ============================================================
-
-@app.route(
-    "/ai_move",
-    methods=["POST"]
-)
+@app.route("/ai_move", methods=["POST"])
 def ai_move():
 
     global board
 
 
+    # Don't move if game is over
+
     if board.is_game_over():
 
-        return jsonify(
-            board_json()
-        )
+        return jsonify(board_json())
 
+
+    # AI controls Black
 
     if board.turn != chess.BLACK:
 
-        return jsonify(
-            board_json()
-        )
+        return jsonify(board_json())
 
 
     move = get_ai_move()
@@ -1149,24 +923,21 @@ def ai_move():
         board.push(move)
 
 
-    return jsonify(
-        board_json()
-    )
+    return jsonify(board_json())
 
 
 # ============================================================
-# START
+# START SERVER
 # ============================================================
 
 if __name__ == "__main__":
 
     print()
     print("==============================")
-    print("       BOB AI SERVER")
+    print("       CHESS AI SERVER")
     print("==============================")
     print()
-    print("Starting server...")
-    print("Open the forwarded port 8000.")
+    print("Open port 8000 in your browser.")
     print()
 
 
