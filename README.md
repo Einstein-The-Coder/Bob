@@ -5,10 +5,18 @@ Ok, so the first thing you must do is run
 source /workspaces/Bob/.venv/bin/activate
 ```
 
-This will activate the python virtual environment
+Also, if you want to change the train, you can change ``` train_ai.py ```.
 
-Now, to run the main file, ``` train.py ```.
+To activate the training, run:
 
 ```
-train.py
+python train_ai.py
+```
+
+This will activate the python virtual environment
+
+Now, to run the main file, ``` app.py ```.
+
+```
+python app.py
 ```
