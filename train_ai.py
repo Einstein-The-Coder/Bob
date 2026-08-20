@@ -23,7 +23,7 @@ TRAIN_FOLDER = "train"
 
 MODEL_PATH = "chess_model_weights.pth"
 
-BATCH_SIZE = 128
+BATCH_SIZE = 16
 
 EPOCHS = 10
 
@@ -36,10 +36,10 @@ POLICY_WEIGHT = 1.0
 VALUE_WEIGHT = 1.0
 
 # Set to None to use every game.
-MAX_GAMES = 100
+MAX_GAMES = 300
 
 # Set to None to use every position.
-MAX_POSITIONS = 50000
+MAX_POSITIONS = None
 
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
@@ -714,7 +714,7 @@ def train_on_folder(
 
     print()
     print("==============================")
-    print("        CHESS AI TRAINER")
+    print("        BOB AI TRAINER")
     print("==============================")
     print()
 
