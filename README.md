@@ -1,5 +1,11 @@
 <h1 align="center">Bob AI</h1>
 
+<p align="center">
+  <img src="https://i.ibb.co/5g5v8sV0/Screenshot-2026-09-26-160710.png"
+       alt="Screenshot 2026 09 26 160710"
+       width="50%">
+</p>
+
 Ok, so the first thing you must do is **change directories** to your current project that you downloaded or cloned.
 
 Next, create a virtual environment with
