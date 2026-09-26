@@ -1,4 +1,4 @@
-# Bob
+<h1 align="center">Bob AI</h1>
 
 Ok, so the first thing you must do is **change directories** to your current project that you downloaded or cloned.
 
